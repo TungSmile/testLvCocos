@@ -1,4 +1,4 @@
-import { _decorator, Camera, Component, instantiate, Node, Prefab, Quat, SkeletalAnimation, tween, Vec3 } from 'cc';
+import { _decorator, Camera, Component, instantiate, Node, Prefab, quat, Quat, SkeletalAnimation, Sprite, tween, Vec3 } from 'cc';
 import { DataManager } from './DataManager';
 import { Solider } from './Solider';
 const { ccclass, property } = _decorator;
@@ -19,6 +19,7 @@ export class GameManager extends Component {
     solider: Prefab = null!;
     private poolSolider: Node[] = [];
 
+    // for store
     @property({ type: Node })
     private staff: Node = null
     @property({ type: Node })
@@ -34,8 +35,21 @@ export class GameManager extends Component {
         let t = this;
         // set camera and boss show 
         t.setData();
-        t.askSoliderForWeapon();
-        // t.schedule(() => { t.checkQueueStore() }, 5)
+        // t.askSoliderForWeapon();
+        t.checkQueueStore()
+        t.schedule(() => { t.checkQueueStore() }, 5)
+        // t.scheduleOnce(() => { t.testcam() }, 2)
+        // t.checkQueueStore()
+        t.changeStatus()
+
+    }
+
+    testcam() {
+        let t = this;
+        let rotation = Quat.fromEuler(new Quat, -30, 0, 0)
+        tween(t.test)
+            .to(3, { worldRotation: rotation })
+            .start()
     }
 
 
@@ -88,28 +102,53 @@ export class GameManager extends Component {
             if (e == false) {
                 t.statusQueue[i] = true
                 t.initCustomer(i.toString());
-                break;
+                return;
             }
         }
     }
 
     getSoliderByStatus(st: statusSolider) {
         let t = this;
-        t.poolSolider.forEach(solider => {
+        let rs = null;
+
+        for (let i = 0; i < t.poolSolider.length; i++) {
+            const solider = t.poolSolider[i];
             if (solider.getComponent(Solider).status == st) {
-                return solider;
+                rs = solider;
+                return rs
             }
-        });
-        return null;
+        }
+        // t.poolSolider.forEach(solider => {
+        //     // console.log(solider.getComponent(Solider).status == st);
+        //     if (solider.getComponent(Solider).status == st) {
+        //         rs = solider;
+        //         return rs
+        //     }
+        // });
+        return rs
     }
+
+    reDirectStaff() {
+        let t = this;
+
+    }
+
+
 
     // for staff
     staffWalk(toPos: Vec3, directTo: Quat) {
         let t = this;
         let time = 1;
-        t.staff.getComponent(SkeletalAnimation).play("Move")
+        // problem rotation of staff
         tween(t.staff)
-            .to(time, { worldPosition: toPos, worldRotation: directTo })
+            .to(time / 2, { worldRotation: directTo }).call(() => {
+                t.staff.getComponent(SkeletalAnimation).play("Move 1")
+            })
+            .to(time, { worldPosition: toPos })
+            .call(() => {
+                t.staff.getComponent(SkeletalAnimation).play("Idle");
+            })
+            .delay(time / 4)
             .call(() => {
                 t.changeStatus()
             })
@@ -118,27 +157,63 @@ export class GameManager extends Component {
 
     askSoliderForWeapon() {
         let t = this;
-        // t.slotSovle.getChildByName("load").active = true;
+        // random weapon solider need
+        // test 
+        // t.slotSovle = t.queue.getChildByName("0")
 
-        // test
-        t.slotSovle = t.queue.getChildByName("0");
+        let tempWeapon: number = 0;
+        let timeCD = 1;
+        let statusSlot = t.slotSovle.getChildByName("logStatus")
+        let loadingBar = t.slotSovle.getChildByPath("logStatus/loading");
+        let imageWeapon = t.slotSovle.getChildByPath("logStatus/Item");
+        // statusSlot.active = true;
+        loadingBar.active = true;
+        t.animationLoaing(timeCD, loadingBar);
+        t.showWeaponWant(timeCD, imageWeapon);
+
+    }
 
 
+    animationLoaing(timeLoad: number, n: Node) {
+        let t = this;
+        let countRep = 0;
+        let repeat = 20;  // for smooth render bar radian
+        let barLoading = n.getChildByName("RadianBar").getComponent(Sprite);
+        barLoading.fillRange = 0;
+        t.schedule(() => {
+            countRep++;
+            barLoading.fillRange = (countRep / repeat)
+            if ((countRep / repeat) == 1) {
+                n.active = false
+            }
+        }, timeLoad / repeat, repeat);
+    }
 
+    showWeaponWant(timeLoad: number, n: Node) {
+        let t = this;
+        t.scheduleOnce(() => {
+            n.active = true;
+            t.changeStatus();
+        }, timeLoad)
+    }
 
-        const worldPosition = t.slotSovle.getWorldPosition(new Vec3);
-        const cameraPoint = new Vec3();
-        t.cam2D.worldToScreen(worldPosition, cameraPoint);
-        const screenPoint = new Vec3();
-        t.cam2D.screenToWorld(cameraPoint, screenPoint);
-        t.test.setPosition(screenPoint);
+    loadingCreateWeapon() {
+        let t = this;
+        let time = 1;
+        let loading = t.posCreateWeapon.getChildByName("loading");
+        loading.active = true;
+        t.animationLoaing(time, loading);
+        t.scheduleOnce(() => {
+            loading.active = false;
+            t.changeStatus();
+        }, time)
     }
 
 
 
-
-
+    //test
     statusStaff: statusStaff = statusStaff.init;
+
     slotSovle: Node = null;
     soliderSovle: Node = null;
     changeStatus() {
@@ -146,47 +221,80 @@ export class GameManager extends Component {
         switch (t.statusStaff) {
             case statusStaff.init:
                 // wait unlock after click hint
+                t.staff.getComponent(SkeletalAnimation).play("Idle");
+                t.statusStaff++;
+                t.scheduleOnce(() => {
+                    t.changeStatus();
+                }, 1);
                 break;
             case statusStaff.walkToQueue:
                 t.soliderSovle = t.getSoliderByStatus(statusSolider.waitStaffCheck);
+                console.log(t.soliderSovle);
+                if (t.soliderSovle == null) {
+                    t.scheduleOnce(() => {
+                        t.changeStatus();
+                    }, 2);
+                    return
+                }
                 t.slotSovle = t.queue.getChildByName(t.soliderSovle.getComponent(Solider).slotStore)
                 let posStand = t.slotSovle.getWorldPosition(new Vec3);
-                let dirStand = t.slotSovle.getWorldRotation(new Quat);
+                // let dirStand = t.slotSovle.getWorldRotation(new Quat);
+                let dirStand = Quat.invert(new Quat, t.slotSovle.getWorldRotation(new Quat))
                 t.staffWalk(posStand, dirStand)
                 t.statusStaff++;
                 break;
             case statusStaff.checkSolider:
                 // call slot queue store show item
-                t.staff.getComponent(SkeletalAnimation).play("Idle")
+                t.staff.getComponent(SkeletalAnimation).play("Idle");
+                t.askSoliderForWeapon();
                 t.statusStaff++;
                 break;
             case statusStaff.walkToStore:
                 let pos1 = t.posCreateWeapon.getWorldPosition(new Vec3);
                 let dir1 = t.posCreateWeapon.getWorldRotation(new Quat);
-                t.staffWalk(pos1, dir1)
+                let temp = Quat.fromEuler(new Quat, 0, 180, 0)
+                t.staffWalk(pos1,
+                    // dir1
+                    Quat.multiply(temp, temp, dir1)
+                )
                 t.statusStaff++;
                 break;
             case statusStaff.createWeapon:
                 // cooldown create weapon then go
-                t.staff.getComponent(SkeletalAnimation).play("Idle")
+                t.staff.getComponent(SkeletalAnimation).play("Idle");
+                t.loadingCreateWeapon()
                 t.statusStaff++;
                 break;
             case statusStaff.giveWeaponForSolider:
                 let pos2 = t.slotSovle.getWorldPosition(new Vec3);
                 let dir2 = t.slotSovle.getWorldRotation(new Quat);
-                t.staffWalk(pos2, dir2)
-                t.statusStaff = statusStaff.walkToQueue;
+                t.staffWalk(pos2, dir2);
+                t.statusStaff = statusStaff.init;
+
+                // problem auto add solider in area fight
+                let slotFight = t.areaFight.getChildByName("0");
+                t.soliderSovle.getComponent(Solider).positionMove = slotFight.getWorldPosition(new Vec3);
+                t.soliderSovle.getComponent(Solider).director = slotFight.getWorldRotation(new Quat);
+                t.soliderSovle.getComponent(Solider).dirHp = Quat.invert(new Quat, slotFight.getWorldRotation(new Quat))
+
+                t.scheduleOnce(() => {
+                    t.statusQueue[Number(t.soliderSovle.getComponent(Solider).slotStore)] = false;
+                    t.slotSovle.getChildByPath("logStatus/Item").active = false;
+                    t.soliderSovle.getComponent(Solider).animationForStatus(statusSolider.waitStaffGetWeapon);
+                }, 1)
                 break;
             default:
                 console.log("How can do that ???");
-
                 break;
         }
 
     }
 
 
+    onOffBarHp() {
+        let t = this;
 
+    }
 
 
 
