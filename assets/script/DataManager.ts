@@ -20,7 +20,7 @@ export class DataManager extends Component {
     done: boolean = false;
     numberMoney: number = 0;
     slotStore: number = 4;
-    slotFight: number = 4;
+    slotFight: number = 5;
     hpSolider1:number=100;
 
 }

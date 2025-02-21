@@ -107,6 +107,18 @@ export class GameManager extends Component {
         }
     }
 
+    checkAreaFight() {
+        let t = this;
+        for (let i = 0; i < t.statusFights.length; i++) {
+            const e = t.statusFights[i];
+            if (e == false) {
+                t.statusFights[i] = true
+                // t.initCustomer(i.toString());
+                return;
+            }
+        }
+    }
+
     getSoliderByStatus(st: statusSolider) {
         let t = this;
         let rs = null;
@@ -271,6 +283,9 @@ export class GameManager extends Component {
                 t.staffWalk(pos2, dir2);
                 t.statusStaff = statusStaff.init;
 
+                
+
+
                 // problem auto add solider in area fight
                 let slotFight = t.areaFight.getChildByName("0");
                 t.soliderSovle.getComponent(Solider).positionMove = slotFight.getWorldPosition(new Vec3);
@@ -291,7 +306,7 @@ export class GameManager extends Component {
     }
 
 
-    onOffBarHp() {
+    hitByBoss() {
         let t = this;
 
     }
